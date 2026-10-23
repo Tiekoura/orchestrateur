@@ -1,0 +1,587 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Orchestrateur · Explorer les endpoints</title>
+<style>
+  :root {
+    --fg: #1a1a2e;
+    --muted: #6b7280;
+    --accent: #6366f1;
+    --accent-hover: #4f46e5;
+    --border: #e5e7eb;
+    --card: #ffffff;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --bg: #f8fafc;
+  }
+  * { margin:0; padding:0; box-sizing:border-box; }
+  body {
+    font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    padding: 24px;
+    line-height: 1.6;
+  }
+  header {
+    max-width: 1200px;
+    margin-bottom: 24px;
+  }
+  header h1 {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .api-url {
+    margin-top: 10px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .api-url label {
+    font-size: 14px;
+    color: var(--muted);
+  }
+  .api-url input {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    width: 260px;
+  }
+  .api-url input:focus {
+    outline: 2px solid var(--accent);
+    border-color: transparent;
+  }
+  .api-url button {
+    padding: 8px 16px;
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+  }
+  .api-url button:hover { background: var(--accent-hover); }
+
+  .grid {
+    max-width: 1200px;
+    display: grid;
+    grid-template-columns: 280px 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 900px) {
+    .grid { grid-template-columns: 1fr; }
+  }
+  nav.sidebar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px;
+    height: fit-content;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+  }
+  nav.sidebar h2 {
+    font-size: 16px;
+    margin-bottom: 12px;
+    color: var(--accent);
+  }
+  .endpoint-item {
+    padding: 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border: 1px solid transparent;
+  }
+  .endpoint-item:hover { background: #f1f5f9; }
+  .endpoint-item.active { background: #eef2ff; border-color: var(--accent); }
+  .endpoint-item .method {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-right: 8px;
+  }
+  .method-get { background: #dbeafe; color: #1d4ed8; }
+  .endpoint-item .name { font-size: 14px; font-weight: 600; }
+  .endpoint-item .desc { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  .panel {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 24px;
+  }
+  .panel h2 { font-size: 20px; color: var(--accent); margin-bottom: 16px; }
+  .endpoint-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 16px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--border);
+  }
+  .endpoint-header .method {
+    font-size: 16px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .method-get { background: #dbeafe; color: #1d4ed8; padding: 4px 10px; border-radius: 6px; }
+  .endpoint-header .name { font-size: 18px; font-weight: 600; }
+  .endpoint-header .params-summary {
+    font-size: 13px;
+    color: var(--muted);
+  }
+
+  .param-group {
+    background: #f8fafc;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px;
+    margin-bottom: 12px;
+  }
+  .param-group h3 {
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .param-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    align-items: center;
+    margin-bottom: 8px;
+  }
+  .param-row label {
+    font-size: 13px;
+    color: var(--muted);
+    min-width: 80px;
+  }
+  .param-row input, .param-row select {
+    padding: 8px 12px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 14px;
+    flex: 1;
+    min-width: 200px;
+  }
+  .param-row input:focus, .param-row select:focus {
+    outline: 2px solid var(--accent);
+    border-color: transparent;
+  }
+  .btn {
+    padding: 10px 20px;
+    border: none;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-test { background: var(--success); color: white; }
+  .btn-test:hover { background: #059669; }
+  .btn-reset { background: #fef3c7; color: #92400e; }
+  .btn-reset:hover { background: #fde68a; }
+  .btn-clear { background: #fee2e2; color: #991b1b; }
+  .btn-clear:hover { background: #fecaca; }
+
+  .response-panel {
+    margin-top: 20px;
+    background: #1e293b;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  .response-panel pre {
+    margin: 0;
+    padding: 16px;
+    overflow-x: auto;
+    font-size: 13px;
+    line-height: 1.5;
+    color: #e2e8f0;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+
+  .status-badge {
+    display: inline-block;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+  .status-badge.ok { background: #dcfce7; color: #166534; }
+  .status-badge.err { background: #fee2e2; color: #991b1b; }
+
+  .empty-state {
+    text-align: center;
+    padding: 40px;
+    color: var(--muted);
+  }
+
+  code, pre { background: #f1f5f9; padding: 2px 4px; border-radius: 4px; }
+  .json-key { color: #7c3aed; }
+  .json-string { color: #065f46; }
+  .json-number { color: #dc2626; }
+  .json-boolean { color: #059669; }
+  .json-null { color: #9ca3af; }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #1e293b;
+    color: #f8fafc;
+    padding: 14px 20px;
+    border-radius: 8px;
+    font-size: 14px;
+    max-width: 400px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+    z-index: 1000;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
+  .toast.show { opacity: 1; }
+
+  footer {
+    max-width: 1200px;
+    margin-top: 24px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--muted);
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🔌 Orchestrateur de données clients</h1>
+  <div class="api-url">
+    <label for="apiUrl">Base de l'API</label>
+    <input type="text" id="apiUrl" value="http://localhost:8000" placeholder="http://localhost:8000">
+    <button id="refreshBtn">Actualiser l'état</button>
+  </div>
+</header>
+
+<div class="grid">
+  <nav class="sidebar">
+    <h2>Endpoints disponibles</h2>
+    <div id="endpointList">
+      <div class="empty-state">Chargement…</div>
+    </div>
+  </nav>
+
+  <div class="panel">
+    <div id="endpointContent">
+      <div class="empty-state">Sélectionnez un endpoint dans la colonne de gauche.</div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  Interface privée · API orchestrateur de données clients · Développé par Data Analyst · 2026
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ─── Configuration & état global ───────────────────────────────
+const state = {
+  apiUrl: 'http://localhost:8000',
+  currentEndpoint: null,
+  endpoints: [],
+};
+
+// ─── Chargement des endpoints depuis le serveur ────────────────
+async function loadEndpoints() {
+  try {
+    const res = await fetch(state.apiUrl + '/health');
+    if (!res.ok) throw new Error('Serveur inaccessible');
+    const health = await res.json();
+
+    // Récupérer la liste des routes via le OpenAPI schema
+    const openApiRes = await fetch(state.apiUrl + '/openapi.json');
+    if (!openApiRes.ok) throw new Error('OpenAPI inaccessible');
+    const openApi = await openApiRes.json();
+
+    const paths = openApi.paths || {};
+    const methods = ['get', 'post', 'put', 'patch', 'delete'];
+    const allowed = new Set(['/health', '/stats', '/top', '/clients', '/monthly', '/domains', '/version', '/']);
+
+    const items = [];
+    for (const [path, pathItem] of Object.entries(paths)) {
+      if (!allowed.has(path)) continue;
+      for (const method of methods) {
+        if (pathItem[method]) {
+          const operation = pathItem[method];
+          const tags = operation.tags ? operation.tags.flat().join(', ') : 'Général';
+          const summary = operation.summary || 'Sans sommaire';
+          const desc = operation.description || '';
+          items.push({
+            method: method.toUpperCase(),
+            path: path,
+            tags: tags,
+            summary: summary,
+            description: desc,
+            parameters: [],
+            responses: operation.responses || {},
+          });
+        }
+      }
+    }
+
+    state.endpoints = items;
+    renderSidebar();
+    if (items.length > 0) {
+      state.currentEndpoint = items[0];
+      renderEndpointContent(items[0]);
+    }
+    showToast('✅ Interface prête — serveur accessible', 'success');
+  } catch (err) {
+    showToast('⚠️ ' + err.message + ' — vérifier l\'URL de l\'API', 'error');
+  }
+}
+
+// ─── Rendu de la barre latérale ────────────────────────────────
+function renderSidebar() {
+  const container = document.getElementById('endpointList');
+  container.innerHTML = '';
+  state.endpoints.forEach(ep => {
+    const div = document.createElement('div');
+    div.className = 'endpoint-item' + (state.currentEndpoint === ep ? ' active' : '');
+    div.dataset.path = ep.path;
+    div.innerHTML = `
+      <span class="method ${ep.method === 'GET' ? 'method-get' : ''}">${ep.method}</span>
+      <div class="name">${ep.path}</div>
+      <div class="desc">${ep.summary}</div>
+    `;
+    div.addEventListener('click', () => {
+      state.currentEndpoint = ep;
+      renderSidebar();
+      renderEndpointContent(ep);
+    });
+    container.appendChild(div);
+  });
+}
+
+// ─── Construction du contenu de l'endpoint ─────────────────────
+function renderEndpointContent(ep) {
+  const container = document.getElementById('endpointContent');
+
+  // Paramètres extraits de l'OpenAPI
+  const params = ep.parameters.map(p => {
+    const inType = p.in === 'query' ? 'query' : p.in;
+    const sample = p.schema?.default ?? p.schema?.example ?? '';
+    return { name: p.name, in: inType, desc: p.description || '', sample: sample };
+  });
+
+  // Générer les champs de saisie
+  let paramHtml = '';
+  if (params.length === 0) {
+    paramHtml = `<p class="empty-state" style="padding:20px;color:var(--muted);">Aucun paramètre requis pour cet endpoint.</p>`;
+  } else {
+    paramHtml = params.map(p => `
+      <div class="param-row">
+        <label>${p.name}${p.desc ? ' <span style="color:#9ca3af;font-size:11px;">' + p.desc + '</span>' : ''}</label>
+        <input type="text" id="param_${p.name}" value="${p.sample}" placeholder="${p.sample !== '' ? p.sample : 'ex:'}">
+      </div>
+    `).join('');
+  }
+
+  // Déterminer le type de réponse attendu
+  const responseDescs = Object.entries(ep.responses)
+    .filter(([code, desc]) => code !== 'default')
+    .map(([code, desc]) => `${code} ${desc}`)
+    .join('; ');
+
+  const html = `
+    <div class="endpoint-header">
+      <div>
+        <span class="method ${ep.method}">${ep.method}</span>
+        <div class="name">${ep.path}</div>
+        <div class="desc">${ep.description}</div>
+      </div>
+      <div class="params-summary">${responseDescs ? 'Réponses : ' + responseDescs : ''}</div>
+    </div>
+
+    <div class="param-group">
+      <h3>Paramètres</h3>
+      ${paramHtml}
+      <div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;">
+        <button class="btn btn-test" onclick="testEndpoint()">▶ Tester l'endpoint</button>
+        <button class="btn btn-reset" onclick="resetParams()">↺ Réinitialiser</button>
+        <button class="btn btn-clear" onclick="clearResponse()">✕ Effacer</button>
+      </div>
+    </div>
+
+    <div class="response-panel">
+      <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:8px;">
+        <span id="statusBadge" class="status-badge">⏳ En attente</span>
+        <span id="statusText" style="font-size:13px;color:#94a3b8;"></span>
+      </div>
+      <pre id="responseContent" style="display:none;">${JSON.stringify({'message': 'Résultat de l\'appel à l\'endpoint'})}</pre>
+    </div>
+  `;
+
+  container.innerHTML = html;
+
+  // Si l'endpoint est /clients, afficher les filtres supplémentaires
+  if (ep.path === '/clients') {
+    const extra = document.createElement('div');
+    extra.className = 'param-group';
+    extra.innerHTML = `
+      <h3>Filtres de pagination</h3>
+      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+        <div style="flex:1;min-width:160px;">
+          <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">Pays (exact)</label>
+          <input type="text" id="param_country" placeholder="France">
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">Ville (exact)</label>
+          <input type="text" id="param_city" placeholder="Paris">
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">Année (2020-2022)</label>
+          <input type="number" id="param_year" min="2020" max="2022" step="1" placeholder="2021">
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">Page</label>
+          <input type="number" id="param_page" min="1" value="1">
+        </div>
+        <div style="flex:1;min-width:160px;">
+          <label style="font-size:13px;color:var(--muted);display:block;margin-bottom:4px;">Taille de page</label>
+          <input type="number" id="param_page_size" min="1" max="500" value="100">
+        </div>
+      </div>
+    ``;
+    container.querySelector('.response-panel').parentNode.insertBefore(extra, container.querySelector('.response-panel'));
+  }
+
+  // Event listener pour le bouton TEST
+  document.querySelectorAll('.btn-test').forEach(btn => {
+    btn.addEventListener('click', testEndpoint);
+  });
+}
+
+// ─── Test d'un endpoint ────────────────────────────────────────
+async function testEndpoint() {
+  const ep = state.currentEndpoint;
+  if (!ep) return;
+
+  const url = state.apiUrl + ep.path;
+  const params = {};
+
+  // Récupérer les valeurs des champs
+  const paramFields = document.querySelectorAll('.param-row input, .param-row select');
+  paramFields.forEach(field => {
+    params[field.id.replace('param_', '')] = field.value;
+  });
+
+  // Pour /clients, les filtres sont dans des champs dédiés
+  if (ep.path === '/clients') {
+    params.country = document.getElementById('param_country')?.value || '';
+    params.city = document.getElementById('param_city')?.value || '';
+    params.year = document.getElementById('param_year')?.value || '';
+    params.page = document.getElementById('param_page')?.value || '1';
+    params.page_size = document.getElementById('param_page_size')?.value || '100';
+  }
+
+  // Filtrer les paramètres vides (sauf les champs vides qui doivent être envoyés comme "")
+  const queryString = new URLSearchParams(
+    Object.entries(params).filter(([_, v]) => v !== '' || v === 0 || v === false)
+  ).toString();
+
+  const fullUrl = queryString ? url + '?' + queryString : url;
+
+  setLoading(true);
+  try {
+    const res = await fetch(fullUrl);
+    const data = await res.json();
+    const status = document.getElementById('statusBadge');
+    const statusText = document.getElementById('statusText');
+    const responseContent = document.getElementById('responseContent');
+
+    status.textContent = '✓ ' + res.status;
+    status.className = 'status-badge ok';
+    statusText.textContent = res.statusText || '';
+    responseContent.style.display = 'block';
+    responseContent.textContent = JSON.stringify(data, null, 2);
+
+    // Ajuster la hauteur du pré
+    responseContent.style.height = '200px';
+  } catch (err) {
+    setLoading(false);
+    showToast('❌ Erreur réseau : ' + err.message, 'error');
+  }
+}
+
+// ─── Réinitialiser les paramètres ──────────────────────────────
+function resetParams() {
+  document.querySelectorAll('.param-row input').forEach(input => {
+    input.value = '';
+  });
+  document.getElementById('param_country')?.value = '';
+  document.getElementById('param_city')?.value = '';
+  document.getElementById('param_year')?.value = '2021';
+  document.getElementById('param_page')?.value = '1';
+  document.getElementById('param_page_size')?.value = '100';
+  const responseContent = document.getElementById('responseContent');
+  if (responseContent) {
+    responseContent.style.display = 'none';
+    responseContent.textContent = JSON.stringify({'message': 'Paramètres réinitialisés'}, null, 2);
+  }
+}
+
+// ─── Effacer la réponse ────────────────────────────────────────
+function clearResponse() {
+  const responseContent = document.getElementById('responseContent');
+  if (responseContent) {
+    responseContent.style.display = 'none';
+    responseContent.textContent = JSON.stringify({'message': 'Résultat effacé'}, null, 2);
+  }
+  const statusBadge = document.getElementById('statusBadge');
+  if (statusBadge) statusBadge.textContent = '⏳ En attente';
+}
+
+// ─── Gestion du chargement ─────────────────────────────────────
+function setLoading(isLoading) {
+  const btns = document.querySelectorAll('.btn-test');
+  btns.forEach(btn => {
+    btn.textContent = isLoading ? '⏳ Chargement…' : '▶ Tester l\'endpoint';
+    btn.disabled = isLoading;
+  });
+}
+
+// ─── Toast ─────────────────────────────────────────────────────
+function showToast(message, type = 'info') {
+  const toast = document.getElementById('toast');
+  toast.textContent = message;
+  toast.className = 'toast show';
+  setTimeout(() => toast.classList.remove('show'), 4000);
+}
+
+// ─── Initialisation ────────────────────────────────────────────
+loadEndpoints();
+
+// Recharger quand l'utilisateur change l'URL
+document.getElementById('apiUrl').addEventListener('change', function() {
+  state.apiUrl = this.value;
+  loadEndpoints();
+});
+</script>
+</body>
+</html>

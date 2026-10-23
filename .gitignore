@@ -1,0 +1,24 @@
+# Virtual environment
+.venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv
+
+# Data files (large, sensitive)
+data/customers_clean.csv
+
+# Output artifacts
+output/
+*.png
+*.docx
+*.pdf
+*.xlsx
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environment
+.env
+.env.local
